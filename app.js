@@ -253,4 +253,4 @@ const io = new IntersectionObserver((entries, observer) => {
     threshold: 0.25
 });
 
-io.observe(box);
+io.observe(box); 
