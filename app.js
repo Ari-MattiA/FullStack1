@@ -1,30 +1,45 @@
 'use strict';
 
-
 const $ = (sel, root = document) => root.querySelector(sel);
 const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
 
-
+// 1) Teema — KORJATTU
 const themeBtn = $('#themeToggle');
 const THEME_KEY = 'theme-preference';
-function applyTheme(t) { document.documentElement.setAttribute('data-theme', t); }
-function saveTheme(t) { localStorage.setItem('them-preference', t); } 
-function loadTheme() { return localStorage.getItem('theme-preference') || 'light'; }
-function toggleTheme() { const next = (loadTheme() === 'light') ? 'dark' : 'light'; applyTheme(next); saveTheme(next); }
+
+function applyTheme(t) {
+    document.documentElement.setAttribute('data-theme', t);
+}
+
+function saveTheme(t) {
+    localStorage.setItem(THEME_KEY, t); // korjattu avain
+}
+
+function loadTheme() {
+    return localStorage.getItem(THEME_KEY) || 'light';
+}
+
+function toggleTheme() {
+    const next = loadTheme() === 'light' ? 'dark' : 'light';
+    applyTheme(next);
+    saveTheme(next);
+}
 
 
 themeBtn.addEventListener('click', toggleTheme);
 
+
 applyTheme(loadTheme());
 
 
+// 2) Haku — virhe: väärä API-osoite + virheenkäsittely puuttuu
 const form = document.getElementById('searchForm');
 const resultsEl = document.getElementById('results');
 const statusEl = document.getElementById('status');
 
-
+// Coffee http-rajapinnan dokumentaatio: https://sampleapis.com/api-list/coffee
 async function searchImages(query) {
-    const url = `https://api.sampleapis.com/coffee/images`; // BUG: ei vastaa hakusanaan
+    const url = `https://api.sampleapis.com/coffee/images`; // BUG edelleen
     const res = await fetch(url);
     const data = await res.json();
     return data.slice(0, 8).map(x => ({ title: x.title || query, url: x.image }));
@@ -34,7 +49,7 @@ form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const q = $('#q').value.trim();
     statusEl.textContent = 'Ladataan…';
-    const items = await searchImages(q);
+    const items = await searchImages(q); // BUG edelleen
     resultsEl.innerHTML = '';
     items.forEach(item => {
         const li = document.createElement('li');
@@ -46,21 +61,24 @@ form.addEventListener('submit', async (e) => {
 });
 
 
+// 3) Laskuri — virhe: event delegation ja bubbling sekoilee
 const counterBtn = $('.counter');
 counterBtn.addEventListener('click', (e) => {
-    if (e.target.classList.contains('count')) return;
+    if (e.target.classList.contains('count')) return; // BUG edelleen
     const span = $('.count', counterBtn);
     span.textContent = String(parseInt(span.textContent, 10) + 1);
 });
 
 
+// 4) Clipboard — virhe: ei permissioiden / https tarkistusta
 $('#copyBtn').addEventListener('click', async () => {
     const text = $('#copyBtn').dataset.text;
-    await navigator.clipboard.writeText(text); 
+    await navigator.clipboard.writeText(text); // BUG edelleen
     alert('Kopioitu!');
 });
 
 
+// 5) IntersectionObserver — virhe: threshold/cleanup puuttuu
 const box = document.querySelector('.observe-box');
 const io = new IntersectionObserver((entries) => {
     entries.forEach(entry => {
