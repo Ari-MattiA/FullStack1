@@ -29,12 +29,37 @@ function toggleTheme() {
 themeBtn.addEventListener('click', toggleTheme);
 applyTheme(loadTheme());
 
-// 2) Haku — korjattu: try/catch, AbortController, lataustila, hakusanan suodatus
+// 2) Haku — korjattu + URL & History API
 const form = document.getElementById('searchForm');
 const resultsEl = document.getElementById('results');
 const statusEl = document.getElementById('status');
+const qInput = document.getElementById('q');
 
 let currentController = null;
+let copyFeedbackTimer = null;
+
+function setQueryInUrl(q, mode = 'push') {
+    const url = new URL(location.href);
+
+    if (q) {
+        url.searchParams.set('q', q);
+    } else {
+        url.searchParams.delete('q');
+    }
+
+    const state = { q };
+
+    if (mode === 'replace') {
+        history.replaceState(state, '', url);
+    } else {
+        history.pushState(state, '', url);
+    }
+}
+
+function getQueryFromUrl() {
+    const url = new URL(location.href);
+    return (url.searchParams.get('q') || '').trim();
+}
 
 // Coffee http-rajapinnan dokumentaatio: https://sampleapis.com/api-list/coffee
 async function searchImages(query, signal) {
@@ -65,30 +90,39 @@ async function searchImages(query, signal) {
     }));
 }
 
-form.addEventListener('submit', async (e) => {
-    e.preventDefault();
+async function runSearch(q, options = {}) {
+    const {
+        updateHistory = true,
+        historyMode = 'push'
+    } = options;
 
-    const q = $('#q').value.trim();
-
-    if (!q) {
-        statusEl.textContent = 'Anna hakusana.';
-        resultsEl.innerHTML = '';
-        return;
-    }
+    const trimmedQuery = q.trim();
 
     if (currentController) {
         currentController.abort();
     }
 
-    currentController = new AbortController();
-
-    statusEl.textContent = 'Ladataan...';
     resultsEl.innerHTML = '';
 
-    try {
-        const items = await searchImages(q, currentController.signal);
+    if (!trimmedQuery) {
+        statusEl.textContent = 'Anna hakusana.';
+        if (updateHistory) {
+            setQueryInUrl('', historyMode);
+        }
+        return;
+    }
 
-        resultsEl.innerHTML = '';
+    qInput.value = trimmedQuery;
+
+    if (updateHistory) {
+        setQueryInUrl(trimmedQuery, historyMode);
+    }
+
+    currentController = new AbortController();
+    statusEl.textContent = 'Ladataan...';
+
+    try {
+        const items = await searchImages(trimmedQuery, currentController.signal);
 
         if (items.length === 0) {
             statusEl.textContent = 'Ei tuloksia.';
@@ -117,9 +151,41 @@ form.addEventListener('submit', async (e) => {
     } finally {
         currentController = null;
     }
+}
+
+form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    await runSearch(qInput.value, { updateHistory: true, historyMode: 'push' });
 });
 
-// 3) Laskuri — korjattu 
+window.addEventListener('popstate', async () => {
+    const q = getQueryFromUrl();
+    qInput.value = q;
+
+    if (!q) {
+        if (currentController) {
+            currentController.abort();
+        }
+        resultsEl.innerHTML = '';
+        statusEl.textContent = 'Anna hakusana.';
+        return;
+    }
+
+    await runSearch(q, { updateHistory: false });
+});
+
+// alustetaan sivu URL-parametrin perusteella
+const initialQuery = getQueryFromUrl();
+history.replaceState({ q: initialQuery }, '', location.href);
+qInput.value = initialQuery;
+
+if (initialQuery) {
+    runSearch(initialQuery, { updateHistory: false });
+} else {
+    statusEl.textContent = 'Anna hakusana.';
+}
+
+// 3) Laskuri — korjattu
 const counterBtn = $('.counter');
 
 counterBtn.addEventListener('click', (e) => {
@@ -131,8 +197,6 @@ counterBtn.addEventListener('click', (e) => {
 });
 
 // 4) Clipboard — korjattu
-let copyFeedbackTimer = null;
-
 $('#copyBtn').addEventListener('click', async () => {
     const text = $('#copyBtn').dataset.text;
     const isSecureClipboardContext =
@@ -174,18 +238,14 @@ $('#copyBtn').addEventListener('click', async () => {
     }
 });
 
-// 5) IntersectionObserver — Korjattu
+// 5) IntersectionObserver — korjattu
 const box = document.querySelector('.observe-box');
 
 const io = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
         if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
             box.textContent = 'Näkyvissä!';
-
-            // lopetetaan tarkkailu
             observer.unobserve(entry.target);
-
-            // vapautetaan observer kokonaan
             observer.disconnect();
         }
     });
