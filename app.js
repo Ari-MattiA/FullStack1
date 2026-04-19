@@ -130,11 +130,48 @@ counterBtn.addEventListener('click', (e) => {
     span.textContent = String(Number(span.textContent) + 1);
 });
 
-// 4) Clipboard — virhe: ei permissioiden / https tarkistusta
+// 4) Clipboard — korjattu HTTPS/permission-tarkistus + virheenkäsittely + statusviesti
+let copyFeedbackTimer = null;
+
 $('#copyBtn').addEventListener('click', async () => {
     const text = $('#copyBtn').dataset.text;
-    await navigator.clipboard.writeText(text);
-    alert('Kopioitu!');
+    const isSecureClipboardContext =
+        location.protocol === 'https:' || location.hostname === 'localhost';
+
+    if (!isSecureClipboardContext) {
+        statusEl.textContent = 'Kopiointi vaatii HTTPS-yhteyden tai localhost-ympäristön.';
+        return;
+    }
+
+    try {
+        if (!navigator.clipboard || typeof navigator.clipboard.writeText !== 'function') {
+            throw new Error('Clipboard API ei ole käytettävissä tässä selaimessa.');
+        }
+
+        if (navigator.permissions?.query) {
+            const permissionStatus = await navigator.permissions.query({ name: 'clipboard-write' });
+
+            if (permissionStatus.state === 'denied') {
+                statusEl.textContent = 'Leikepöydän käyttö on estetty selaimen oikeuksissa.';
+                return;
+            }
+        }
+
+        await navigator.clipboard.writeText(text);
+
+        statusEl.textContent = 'Kopioitu';
+
+        if (copyFeedbackTimer) {
+            clearTimeout(copyFeedbackTimer);
+        }
+
+        copyFeedbackTimer = setTimeout(() => {
+            statusEl.textContent = '';
+        }, 2000);
+    } catch (error) {
+        console.error('Kopiointi epäonnistui:', error);
+        statusEl.textContent = 'Kopiointi epäonnistui. Tarkista selaimen oikeudet ja käytä HTTPS-yhteyttä.';
+    }
 });
 
 // 5) IntersectionObserver — virhe: threshold/cleanup puuttuu
