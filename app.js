@@ -119,12 +119,15 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// 3) Laskuri — virhe: event delegation ja bubbling sekoilee
+// 3) Laskuri — korjattu bubbling
 const counterBtn = $('.counter');
+
 counterBtn.addEventListener('click', (e) => {
-    if (e.target.classList.contains('count')) return;
-    const span = $('.count', counterBtn);
-    span.textContent = String(parseInt(span.textContent, 10) + 1);
+    const button = e.target.closest('button.counter');
+    if (!button) return;
+
+    const span = button.querySelector('.count');
+    span.textContent = String(Number(span.textContent) + 1);
 });
 
 // 4) Clipboard — virhe: ei permissioiden / https tarkistusta
