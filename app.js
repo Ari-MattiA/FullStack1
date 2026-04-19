@@ -119,7 +119,7 @@ form.addEventListener('submit', async (e) => {
     }
 });
 
-// 3) Laskuri — korjattu bubbling
+// 3) Laskuri — korjattu 
 const counterBtn = $('.counter');
 
 counterBtn.addEventListener('click', (e) => {
@@ -130,7 +130,7 @@ counterBtn.addEventListener('click', (e) => {
     span.textContent = String(Number(span.textContent) + 1);
 });
 
-// 4) Clipboard — korjattu HTTPS/permission-tarkistus + virheenkäsittely + statusviesti
+// 4) Clipboard — korjattu
 let copyFeedbackTimer = null;
 
 $('#copyBtn').addEventListener('click', async () => {
@@ -174,13 +174,23 @@ $('#copyBtn').addEventListener('click', async () => {
     }
 });
 
-// 5) IntersectionObserver — virhe: threshold/cleanup puuttuu
+// 5) IntersectionObserver — Korjattu
 const box = document.querySelector('.observe-box');
-const io = new IntersectionObserver((entries) => {
+
+const io = new IntersectionObserver((entries, observer) => {
     entries.forEach(entry => {
-        if (entry.intersectionRatio > 0.25) {
+        if (entry.isIntersecting && entry.intersectionRatio >= 0.25) {
             box.textContent = 'Näkyvissä!';
+
+            // lopetetaan tarkkailu
+            observer.unobserve(entry.target);
+
+            // vapautetaan observer kokonaan
+            observer.disconnect();
         }
     });
+}, {
+    threshold: 0.25
 });
+
 io.observe(box);
